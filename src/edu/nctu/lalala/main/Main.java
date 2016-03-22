@@ -15,8 +15,11 @@ public class Main {
 	
 	public static void GenerateTrainingTestingFiles()
 	{
+		long time = System.nanoTime();
 		Parser p = new Parser();
 		p.ProcessAllUsers();
+		long duration = (System.nanoTime() - time)/1000/1000/1000;
+		System.out.println("Finishing training testing file generation in: " + duration + " seconds");
 	}
 
 }

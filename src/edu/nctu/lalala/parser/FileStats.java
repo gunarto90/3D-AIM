@@ -28,6 +28,10 @@ public class FileStats {
 		this.numGps++;
 	}
 
+	public void addNumGps(int numGps) {
+		this.numGps += numGps;
+	}
+
 	public int getNumData() {
 		return numData;
 	}
@@ -87,6 +91,12 @@ public class FileStats {
 		if (index < 0 || index >= actDistributions.length)
 			return;
 		actDistributions[index]++;
+	}
+	
+	public void incrementActivity(int index, int amount) {
+		if (index < 0 || index >= actDistributions.length)
+			return;
+		actDistributions[index] += amount;
 	}
 
 	public double getActivityEntropy() {
