@@ -2,8 +2,10 @@ package edu.nctu.lalala.parser;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -37,11 +39,11 @@ public class Parser {
 		d1 = null;
 		FileStats stats = new FileStats();
 
-//		System.out.println(HardwareFile.getAbsolutePath());
+		// System.out.println(HardwareFile.getAbsolutePath());
 		if (HardwareFile.isDirectory()) // Just to make sure no error happens
 		{
 			String[] s = HardwareFile.list(); // List
-//			System.out.println("size : " + s.length);
+			// System.out.println("size : " + s.length);
 			for (int i = 0; i < s.length; i++) {
 				HardwareFileList.add(s[i]);
 			}
@@ -60,6 +62,12 @@ public class Parser {
 			String filename = userId + "\\" + HardwareFileList.get(i);
 			String hardwareFileName = Parameter.HARDWARE_PATH + filename;
 			stats.addFileSize(new File(hardwareFileName).length());
+			// Make directories first
+			File f_train = new File(Parameter.HARDWARE_TRAINING_PATH + userId);
+			f_train.mkdirs();
+			File f_test = new File(Parameter.HARDWARE_TESTING_PATH + userId);
+			f_test.mkdirs();
+			// Initialize hardware
 			InitializeHardware(hardwareFileName, filename, stats);
 		}
 
@@ -74,6 +82,7 @@ public class Parser {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public void InitializeHardware(Reader hardwareReader, String fileName, FileStats stats)
 			throws IOException, ParseException {
 		JSONParser jsonParser = new JSONParser();
@@ -133,16 +142,15 @@ public class Parser {
 			}
 			// Write to file
 			// System.out.println(parameter.HardwareTraining_path+fileName);
-			// Writer writer = new
-			// FileWriter(parameter.HardwareTraining_path+fileName);
-			// writer.write(trainingMainArray.toString());
-			// writer.close();
-			//
-			// writer = new FileWriter(parameter.HardwareTesting_path+fileName);
-			// writer.write(testingMainArray.toString());
-			// writer.close();
+			Writer writer = new FileWriter(Parameter.HARDWARE_TRAINING_PATH + fileName);
+			writer.write(trainingMainArray.toString());
+			writer.close();
+
+			writer = new FileWriter(Parameter.HARDWARE_TESTING_PATH + fileName);
+			writer.write(testingMainArray.toString());
+			writer.close();
 		} catch (Exception e) {
-			System.err.println("????????????????????????????????????????" + e.getMessage());
+			System.err.println("[ERR-Parser.InitHardware] " + e.getMessage());
 		}
 	}
 
@@ -158,6 +166,5 @@ public class Parser {
 				trainingIndex.add(n);
 		}
 		Collections.sort(trainingIndex);
-		Iterator<Integer> iterator = trainingIndex.iterator();
 	}
 }
