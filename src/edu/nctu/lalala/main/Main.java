@@ -17,9 +17,9 @@ public class Main {
 	{
 		long time = System.nanoTime();
 		Parser p = new Parser();
-		p.ProcessAllUsers();
+		p.processAllUsers();
 		long duration = (System.nanoTime() - time)/1000/1000/1000;
-		System.out.println("Finishing training testing file generation in: " + duration + " seconds");
+		System.out.println(String.format("Finishing training testing file generation in: %d seconds (%d minutes)", duration, duration/60));
 	}
 
 }
