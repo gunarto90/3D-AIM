@@ -30,18 +30,52 @@ enum Init_Type {
 
 public class Parser {
 
+	/**
+	 * if true, generate some sample in addition to original csv
+	 */
+	public static boolean IS_GENERATING_SAMPLE_FILES = true;
+	public static int SAMPLE_NUMBER = 300;
+	public static String SAMPLE_PREFIX = "sample_" + SAMPLE_NUMBER + "_";
+	static List<List<String>> ACC_SAMPLE_CSV = new ArrayList<>();
+	static List<List<String>> GPS_SAMPLE_CSV = new ArrayList<>();
+	static List<List<String>> APP_SAMPLE_CSV = new ArrayList<>();
+
+	static String ACC_CSV_NAME;
+	static String GPS_CSV_NAME;
+	static String APP_CSV_NAME;
+
+	public Parser() {
+		if (IS_GENERATING_SAMPLE_FILES) {
+			ACC_CSV_NAME = "%s%s%s_accel.csv";
+			GPS_CSV_NAME = "%s%s%s_gps.csv";
+			APP_CSV_NAME = "%s%s%s_soft.csv";
+		} else {
+			ACC_CSV_NAME = "%s%s_accel.csv";
+			GPS_CSV_NAME = "%s%s_gps.csv";
+			APP_CSV_NAME = "%s%s_soft.csv";
+		}
+		for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
+			ACC_SAMPLE_CSV.add(new ArrayList<>());
+			GPS_SAMPLE_CSV.add(new ArrayList<>());
+			APP_SAMPLE_CSV.add(new ArrayList<>());
+		}
+
+//		System.out.println(PrintUtility.getInstance().getClassName());
+	}
+
 	List<Integer> trainingIndex = new ArrayList<>();
 
+	@SuppressWarnings("unused")
 	public void processAllUsers() {
 		System.out.println(Parameter.getWorkingDirectory());
 		for (int index = 0; index < Parameter.getUsers().length; index++) {
 			String userId = Parameter.getUsers()[index];
 			System.out.println(userId);
-//			FileStats hardwareStats = initializeData(userId, Init_Type.Hardware);
-//			System.out.println(hardwareStats.generateColumnReport(false));
+			// FileStats hardwareStats = initializeData(userId,
+			// Init_Type.Hardware);
+			// System.out.println(hardwareStats.generateColumnReport(false));
 			FileStats softwareStats = initializeData(userId, Init_Type.Software);
-			System.out.println(softwareStats.generateColumnReport(true));
-//			System.out.println(softwareStats.generateReport());
+			// System.out.println(softwareStats.generateColumnReport(false));
 		}
 	}
 
@@ -58,7 +92,7 @@ public class Parser {
 		FileStats stats = null;
 		if (type == Init_Type.Hardware)
 			stats = new HardwareStats();
-		else if(type == Init_Type.Software)
+		else if (type == Init_Type.Software)
 			stats = new SoftwareStats();
 
 		if (Parameter.IS_GENERATING_CSV_FILES) {
@@ -95,6 +129,34 @@ public class Parser {
 			// Initialize hardware
 			initializeData(targetFileName, filename, userId, stats, type);
 		}
+
+		// Sampling
+		if (IS_GENERATING_SAMPLE_FILES) {
+			if (type == Init_Type.Hardware) {
+				// Accel
+				reduceSampleCSV(ACC_SAMPLE_CSV);
+				for (List<String> list : ACC_SAMPLE_CSV) {
+					for (String s : list) {
+						writeCSVtoFile(userId, CSV_Type.Accel, s);
+					}
+				}
+				// GPS
+				reduceSampleCSV(GPS_SAMPLE_CSV);
+				for (List<String> list : GPS_SAMPLE_CSV) {
+					for (String s : list) {
+						writeCSVtoFile(userId, CSV_Type.GPS, s);
+					}
+				}
+			} else if (type == Init_Type.Software) {
+				// App
+				reduceSampleCSV(APP_SAMPLE_CSV);
+				for (List<String> list : APP_SAMPLE_CSV) {
+					for (String s : list) {
+						writeCSVtoFile(userId, CSV_Type.App, s);
+					}
+				}
+			}
+		}
 		return stats;
 	}
 
@@ -104,10 +166,8 @@ public class Parser {
 			f = new File(Parameter.HARDWARE_TRAINING_PATH + userId);
 			f.mkdirs();
 			f = new File(Parameter.HARDWARE_TESTING_PATH + userId);
-			f.mkdirs();			
-		}
-		else if(type == Init_Type.Software)
-		{
+			f.mkdirs();
+		} else if (type == Init_Type.Software) {
 			f = new File(Parameter.SOFTWARE_TRAINING_PATH + userId);
 			f.mkdirs();
 			f = new File(Parameter.SOFTWARE_TESTING_PATH + userId);
@@ -118,8 +178,7 @@ public class Parser {
 		f.mkdirs();
 	}
 
-	public void initializeData(String targetFileName, String fileName, String userId, FileStats stats,
-			Init_Type type) {
+	public void initializeData(String targetFileName, String fileName, String userId, FileStats stats, Init_Type type) {
 		try {
 			initializeData(new FileReader(targetFileName), fileName, userId, stats, type);
 		} catch (Exception e) {
@@ -130,15 +189,26 @@ public class Parser {
 	private void refreshCSV(String userId, Init_Type type) {
 		File f = null;
 		if (type == Init_Type.Hardware) {
-			f = new File(Parameter.CSV_OUTPUT + userId + "_accel.csv");
+			// Accel
+			if (IS_GENERATING_SAMPLE_FILES)
+				f = new File(String.format(ACC_CSV_NAME, Parameter.CSV_OUTPUT, SAMPLE_PREFIX, userId));
+			else
+				f = new File(String.format(ACC_CSV_NAME, Parameter.CSV_OUTPUT, userId));
 			if (f.exists())
 				f.delete();
-			f = new File(Parameter.CSV_OUTPUT + userId + "_gps.csv");
+			// GPS
+			if (IS_GENERATING_SAMPLE_FILES)
+				f = new File(String.format(GPS_CSV_NAME, Parameter.CSV_OUTPUT, SAMPLE_PREFIX, userId));
+			else
+				f = new File(String.format(GPS_CSV_NAME, Parameter.CSV_OUTPUT, userId));
 			if (f.exists())
 				f.delete();
-		} else if(type == Init_Type.Software)
-		{
-			f = new File(Parameter.CSV_OUTPUT + userId + "_soft.csv");
+		} else if (type == Init_Type.Software) {
+			// App
+			if (IS_GENERATING_SAMPLE_FILES)
+				f = new File(String.format(APP_CSV_NAME, Parameter.CSV_OUTPUT, SAMPLE_PREFIX, userId));
+			else
+				f = new File(String.format(APP_CSV_NAME, Parameter.CSV_OUTPUT, userId));
 			if (f.exists())
 				f.delete();
 		}
@@ -162,13 +232,14 @@ public class Parser {
 		List<String> accelCsvList = new ArrayList<>();
 		List<String> gpsCsvList = new ArrayList<>();
 		List<String> appCsvList = new ArrayList<>();
-		
+
 		try {
 			while (iterator.hasNext()) {
 				JSONObject parse = (JSONObject) iterator.next();
 				JSONObject unitObj = new JSONObject();
 				Iterator<?> tempIterator = null;
 				JSONObject temp = null;
+				String csvString = null;
 
 				// Get the activity label from data
 				String lifelable = (String) parse.get("lifelable");
@@ -180,6 +251,14 @@ public class Parser {
 					activity = lifelabel;
 				unitObj.put("lifelabel", activity);
 
+				int activityIndex = -1;
+				for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
+					if (Parameter.getTargetActivities()[i].equals(activity)) {
+						activityIndex = i;
+						break;
+					}
+				}
+
 				if (type == Init_Type.Hardware) {
 					JSONArray accel = (JSONArray) parse.get("Accel");
 					JSONArray gps = (JSONArray) parse.get("GPS");
@@ -189,23 +268,23 @@ public class Parser {
 					tempIterator = accel.iterator();
 					while (tempIterator.hasNext()) {
 						temp = (JSONObject) tempIterator.next();
-						accelCsvList.add(buildCSV(userId, activity, temp, CSV_Type.Accel));
+						csvString = buildCSV(userId, activity, temp, CSV_Type.Accel);
+						accelCsvList.add(csvString);
+						if (IS_GENERATING_SAMPLE_FILES)
+							ACC_SAMPLE_CSV.get(activityIndex).add(csvString);
 					}
 					// GPS
 					if (gps.size() > 0) {
 						tempIterator = gps.iterator();
 						while (tempIterator.hasNext()) {
 							temp = (JSONObject) tempIterator.next();
-							gpsCsvList.add(buildCSV(userId, activity, temp, CSV_Type.GPS));
+							csvString = buildCSV(userId, activity, temp, CSV_Type.GPS);
+							gpsCsvList.add(csvString);
+							if (IS_GENERATING_SAMPLE_FILES)
+								GPS_SAMPLE_CSV.get(activityIndex).add(csvString);
 						}
 					}
-					// Match index
-					for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
-						if (Parameter.getTargetActivities()[i].equals(activity)) {
-							stats.incrementActivity(i, accel.size());
-							break;
-						}
-					}
+					stats.incrementActivity(activityIndex, accel.size());
 				} else if (type == Init_Type.Software) {
 					JSONArray app = (JSONArray) parse.get("App");
 					String time = parse.get("time").toString();
@@ -216,15 +295,12 @@ public class Parser {
 						temp = (JSONObject) tempIterator.next();
 						SoftwareStats soft = (SoftwareStats) stats;
 						soft.incrementAppStats(temp.get("name").toString());
-						appCsvList.add(buildCSV(userId, activity, temp, CSV_Type.App, time));
+						csvString = buildCSV(userId, activity, temp, CSV_Type.App, time);
+						appCsvList.add(csvString);
+						if (IS_GENERATING_SAMPLE_FILES)
+							APP_SAMPLE_CSV.get(activityIndex).add(csvString);
 					}
-					// Match index
-					for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
-						if (Parameter.getTargetActivities()[i].equals(activity)) {
-							stats.incrementActivity(i);
-							break;
-						}
-					}
+					stats.incrementActivity(activityIndex);
 				}
 
 				if (Parameter.MODE == TrainingMode.Default) {
@@ -247,9 +323,7 @@ public class Parser {
 				// Add statistics (precise)
 				stats.addNumData(accelCsvList.size());
 				hard.addNumGps(gpsCsvList.size());
-			}
-			else if(type == Init_Type.Software)
-			{
+			} else if (type == Init_Type.Software) {
 				stats.addNumData(arr.size());
 			}
 			// Write to file
@@ -266,7 +340,7 @@ public class Parser {
 			if (Parameter.IS_GENERATING_TESTING_FILES) {
 				if (type == Init_Type.Hardware)
 					writer = new FileWriter(Parameter.HARDWARE_TESTING_PATH + fileName);
-				else if(type == Init_Type.Software)
+				else if (type == Init_Type.Software)
 					writer = new FileWriter(Parameter.SOFTWARE_TESTING_PATH + fileName);
 				writer.write(testingArray.toString());
 				writer.close();
@@ -274,6 +348,31 @@ public class Parser {
 
 		} catch (Exception e) {
 			System.err.println("[ERR-Parser.InitData]: " + e.getMessage());
+		}
+	}
+
+	private void reduceSampleCSV(List<List<String>> sample) {
+		Random r = new Random();
+		// For each activity, the minimum sample
+		int min = SAMPLE_NUMBER;
+		for (List<?> list : sample) {
+			System.out.println(":: " + list.size());
+			if (list.size() < min && list.size() > 0)
+				min = list.size();
+		}
+		System.out.println("Min: " + min);
+		for (int i=0; i<sample.size(); i++) {
+			List<String> list = sample.get(i);
+			List<String> newList = new ArrayList<>();
+			if(list.size() > 0)
+			{
+				while(newList.size() < min)
+				{
+					newList.add((String) list.remove(r.nextInt(list.size())));
+				}
+				list.clear();
+				list.addAll(newList);
+			}
 		}
 	}
 
@@ -311,40 +410,44 @@ public class Parser {
 			sb.append(parse.get("Z"));
 		} else if (type == CSV_Type.GPS) {
 			sb.append(parse.get("time")).append(',');
-			sb.append(parse.get("Y")).append(',');	// latitude
-			sb.append(parse.get("X")).append(',');	// longitude
+			sb.append(parse.get("Y")).append(','); // latitude
+			sb.append(parse.get("X")).append(','); // longitude
 			sb.append(parse.get("Speed"));
-		} else if(type == CSV_Type.App)
-		{
+		} else if (type == CSV_Type.App) {
 			sb.append(parse.get("name"));
 		}
-		if(others.length >0)
-		{
-			for(String s: others)
-			{
+		if (others.length > 0) {
+			for (String s : others) {
 				sb.append(',').append(s);
 			}
 		}
 		sb.append('\n');
 		if (Parameter.IS_GENERATING_CSV_FILES) {
-			writeCSVtoFile(userId, type, sb);
+			writeCSVtoFile(userId, type, sb.toString());
 		}
 		return sb.toString();
 	}
 
-	private void writeCSVtoFile(String userId, CSV_Type type, StringBuilder sb) {
+	private void writeCSVtoFile(String userId, CSV_Type type, String s) {
 		Writer writer = null;
 		try {
+			String format = null;
+			File f = null;
 			if (type == CSV_Type.Accel)
-				writer = new FileWriter(Parameter.CSV_OUTPUT + userId + "_accel.csv", true);
+				format = ACC_CSV_NAME;
 			else if (type == CSV_Type.GPS)
-				writer = new FileWriter(Parameter.CSV_OUTPUT + userId + "_gps.csv", true);
-			else if(type == CSV_Type.App)
-				writer = new FileWriter(Parameter.CSV_OUTPUT + userId + "_soft.csv", true);
-			writer.append(sb.toString());
+				format = GPS_CSV_NAME;
+			else if (type == CSV_Type.App)
+				format = APP_CSV_NAME;
+			if (IS_GENERATING_SAMPLE_FILES)
+				f = new File(String.format(format, Parameter.CSV_OUTPUT, SAMPLE_PREFIX, userId));
+			else
+				f = new File(String.format(format, Parameter.CSV_OUTPUT, userId));
+			writer = new FileWriter(f, true);
+			writer.append(s);
 			writer.close();
 		} catch (IOException e) {
-			// e.printStackTrace();
+			System.err.println("[ERR-Parser.writeCSV]: " + e.getMessage());
 		}
 	}
 }
