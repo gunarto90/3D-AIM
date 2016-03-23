@@ -1,6 +1,5 @@
 package edu.nctu.lalala.parser;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -22,100 +21,134 @@ import edu.nctu.lalala.common.Parameter;
 import edu.nctu.lalala.enums.TrainingMode;
 
 enum CSV_Type {
-	Accel, GPS
+	Accel, GPS, App
+}
+
+enum Init_Type {
+	Hardware, Software
 }
 
 public class Parser {
 
 	List<Integer> trainingIndex = new ArrayList<>();
 
-	public void ProcessAllUsers() {
+	public void processAllUsers() {
 		System.out.println(Parameter.getWorkingDirectory());
 		for (int index = 0; index < Parameter.getUsers().length; index++) {
 			String userId = Parameter.getUsers()[index];
 			System.out.println(userId);
-			FileStats stats = InitializeHardware(userId);
-			System.out.println(stats.generateColumnReport(false));
+//			FileStats hardwareStats = initializeData(userId, Init_Type.Hardware);
+//			System.out.println(hardwareStats.generateColumnReport(false));
+			FileStats softwareStats = initializeData(userId, Init_Type.Software);
+			System.out.println(softwareStats.generateColumnReport(true));
+//			System.out.println(softwareStats.generateReport());
 		}
 	}
 
-	public FileStats InitializeHardware(String userId) {
-		File HardwareFile = new File(Parameter.HARDWARE_PATH + userId);
-		ArrayList<String> HardwareFileList = new ArrayList<String>();
+	public FileStats initializeData(String userId, Init_Type type) {
+		File file = null;
+		if (type == Init_Type.Hardware)
+			file = new File(Parameter.HARDWARE_PATH + userId);
+		else if (type == Init_Type.Software)
+			file = new File(Parameter.SOFTWARE_PATH + userId);
+
+		ArrayList<String> fileList = new ArrayList<String>();
 		String d1, d2;
 		d1 = null;
-		FileStats stats = new FileStats();
+		FileStats stats = null;
+		if (type == Init_Type.Hardware)
+			stats = new HardwareStats();
+		else if(type == Init_Type.Software)
+			stats = new SoftwareStats();
 
-		// System.out.println(HardwareFile.getAbsolutePath());
-		if (HardwareFile.isDirectory()) // Just to make sure no error happens
-		{
-			String[] s = HardwareFile.list(); // List
-			// System.out.println("size : " + s.length);
-			for (int i = 0; i < s.length; i++) {
-				HardwareFileList.add(s[i]);
-			}
-		}
-		
 		if (Parameter.IS_GENERATING_CSV_FILES) {
 			// First "refresh" the file (delete them)
-			 refreshCSV(userId);
+			refreshCSV(userId, type);
 		}
 
-		for (int i = 0; i < HardwareFileList.size(); i++) {
-			// System.out.println(i + ": " + HardwareFileList.get(i));
+		if (file.isDirectory()) // Just to make sure no error happens
+		{
+			String[] s = file.list();
+			for (int i = 0; i < s.length; i++) {
+				fileList.add(s[i]);
+			}
+		}
+
+		for (int i = 0; i < fileList.size(); i++) {
 			// Count num of days by observing filename
 			d2 = d1;
-			d1 = HardwareFileList.get(i).split(" ")[0];
+			d1 = fileList.get(i).split(" ")[0];
 			if (i > 0) {
 				if (!d1.equals(d2)) {
 					stats.incrementNumDays();
 				}
 			}
-			String filename = userId + "\\" + HardwareFileList.get(i);
-			String hardwareFileName = Parameter.HARDWARE_PATH + filename;
-			stats.addFileSize(new File(hardwareFileName).length());
+			String filename = userId + "\\" + fileList.get(i);
+			String targetFileName = null;
+			if (type == Init_Type.Hardware)
+				targetFileName = Parameter.HARDWARE_PATH + filename;
+			else if (type == Init_Type.Software)
+				targetFileName = Parameter.SOFTWARE_PATH + filename;
+			stats.addFileSize(new File(targetFileName).length());
 			// Make directories first
-			generateDirectories(userId);
+			generateDirectories(userId, type);
 			// Initialize hardware
-			InitializeHardware(hardwareFileName, filename, userId, stats);
+			initializeData(targetFileName, filename, userId, stats, type);
 		}
-
 		return stats;
 	}
 
-	private void generateDirectories(String userId) {
+	private void generateDirectories(String userId, Init_Type type) {
 		File f = null;
-		f = new File(Parameter.HARDWARE_TRAINING_PATH + userId);
-		f.mkdirs();
-		f = new File(Parameter.HARDWARE_TESTING_PATH + userId);
-		f.mkdirs();
+		if (type == Init_Type.Hardware) {
+			f = new File(Parameter.HARDWARE_TRAINING_PATH + userId);
+			f.mkdirs();
+			f = new File(Parameter.HARDWARE_TESTING_PATH + userId);
+			f.mkdirs();			
+		}
+		else if(type == Init_Type.Software)
+		{
+			f = new File(Parameter.SOFTWARE_TRAINING_PATH + userId);
+			f.mkdirs();
+			f = new File(Parameter.SOFTWARE_TESTING_PATH + userId);
+			f.mkdirs();
+		}
+		// csv folder
 		f = new File(Parameter.CSV_OUTPUT);
 		f.mkdirs();
 	}
 
-	public void InitializeHardware(String hardwareFileName, String fileName, String userId, FileStats stats) {
+	public void initializeData(String targetFileName, String fileName, String userId, FileStats stats,
+			Init_Type type) {
 		try {
-			InitializeHardware(new FileReader(hardwareFileName), fileName, userId, stats);
+			initializeData(new FileReader(targetFileName), fileName, userId, stats, type);
 		} catch (Exception e) {
-			System.err.println("[ERR-Parser.Hardware]: " + hardwareFileName + " is broken !");
+			System.err.println("[ERR-Parser.initData]: " + targetFileName + " is broken !");
 		}
 	}
 
-	private void refreshCSV(String userId) {
+	private void refreshCSV(String userId, Init_Type type) {
 		File f = null;
-		f = new File(Parameter.CSV_OUTPUT + userId + "_accel.csv");
-		if (f.exists())
-			f.delete();
-		f = new File(Parameter.CSV_OUTPUT + userId + "_gps.csv");
-		if (f.exists())
-			f.delete();
+		if (type == Init_Type.Hardware) {
+			f = new File(Parameter.CSV_OUTPUT + userId + "_accel.csv");
+			if (f.exists())
+				f.delete();
+			f = new File(Parameter.CSV_OUTPUT + userId + "_gps.csv");
+			if (f.exists())
+				f.delete();
+		} else if(type == Init_Type.Software)
+		{
+			f = new File(Parameter.CSV_OUTPUT + userId + "_soft.csv");
+			if (f.exists())
+				f.delete();
+		}
 	}
 
 	@SuppressWarnings("unchecked")
-	public void InitializeHardware(Reader hardwareReader, String fileName, String userId, FileStats stats)
+	public void initializeData(Reader reader, String fileName, String userId, FileStats stats, Init_Type type)
 			throws IOException, ParseException {
 		JSONParser jsonParser = new JSONParser();
-		JSONArray arr = (JSONArray) jsonParser.parse(hardwareReader);
+		JSONArray arr = (JSONArray) jsonParser.parse(reader);
 		String activity = null;
 		Iterator<?> iterator = arr.iterator();
 		int iteratorCounter = 0;
@@ -123,88 +156,124 @@ public class Parser {
 		// System.out.println("JSON unit: "+arr.size());
 		random(arr.size());
 		// crossValidation(arr.size());
-		JSONArray trainingMainArray = new JSONArray();
-		JSONArray testingMainArray = new JSONArray();
+		JSONArray trainingArray = new JSONArray();
+		JSONArray testingArray = new JSONArray();
 
-		List<String> accel_csv_list = new ArrayList<>();
-		List<String> gps_csv_list = new ArrayList<>();
+		List<String> accelCsvList = new ArrayList<>();
+		List<String> gpsCsvList = new ArrayList<>();
+		List<String> appCsvList = new ArrayList<>();
+		
 		try {
 			while (iterator.hasNext()) {
 				JSONObject parse = (JSONObject) iterator.next();
+				JSONObject unitObj = new JSONObject();
+				Iterator<?> tempIterator = null;
+				JSONObject temp = null;
 
-				JSONArray accel = (JSONArray) parse.get("Accel");
+				// Get the activity label from data
 				String lifelable = (String) parse.get("lifelable");
 				String lifelabel = (String) parse.get("lifelabel");
-				JSONArray gps = (JSONArray) parse.get("GPS");
-
 				// Because version 1 use "lifelable"
 				if (lifelable != null)
 					activity = lifelable;
 				else if (lifelabel != null)
 					activity = lifelabel;
-
-				JSONObject unitObj = new JSONObject();
-				unitObj.put("Accel", accel);
-				unitObj.put("GPS", gps);
 				unitObj.put("lifelabel", activity);
 
-				Iterator<?> tempIterator = null;
-				JSONObject temp = null;
-				// Accel
-				tempIterator = accel.iterator();
-				while (tempIterator.hasNext()) {
-					temp = (JSONObject) tempIterator.next();
-					accel_csv_list.add(buildCSV(userId, activity, temp, CSV_Type.Accel));
-				}
-				// GPS
-				if (gps.size() > 0) {
-					tempIterator = gps.iterator();
+				if (type == Init_Type.Hardware) {
+					JSONArray accel = (JSONArray) parse.get("Accel");
+					JSONArray gps = (JSONArray) parse.get("GPS");
+					unitObj.put("Accel", accel);
+					unitObj.put("GPS", gps);
+					// Accel
+					tempIterator = accel.iterator();
 					while (tempIterator.hasNext()) {
 						temp = (JSONObject) tempIterator.next();
-						gps_csv_list.add(buildCSV(userId, activity, temp, CSV_Type.GPS));
+						accelCsvList.add(buildCSV(userId, activity, temp, CSV_Type.Accel));
 					}
-				}
-
-				// Match index
-				for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
-					if (Parameter.getTargetActivities()[i].equals(activity)) {
-						stats.incrementActivity(i, accel.size());
-						// System.out.println(i + ":" + activity);
-						break;
+					// GPS
+					if (gps.size() > 0) {
+						tempIterator = gps.iterator();
+						while (tempIterator.hasNext()) {
+							temp = (JSONObject) tempIterator.next();
+							gpsCsvList.add(buildCSV(userId, activity, temp, CSV_Type.GPS));
+						}
+					}
+					// Match index
+					for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
+						if (Parameter.getTargetActivities()[i].equals(activity)) {
+							stats.incrementActivity(i, accel.size());
+							break;
+						}
+					}
+				} else if (type == Init_Type.Software) {
+					JSONArray app = (JSONArray) parse.get("App");
+					String time = parse.get("time").toString();
+					unitObj.put("App", app);
+					unitObj.put("time", time);
+					tempIterator = app.iterator();
+					while (tempIterator.hasNext()) {
+						temp = (JSONObject) tempIterator.next();
+						SoftwareStats soft = (SoftwareStats) stats;
+						soft.incrementAppStats(temp.get("name").toString());
+						appCsvList.add(buildCSV(userId, activity, temp, CSV_Type.App, time));
+					}
+					// Match index
+					for (int i = 0; i < Parameter.getTargetActivities().length; i++) {
+						if (Parameter.getTargetActivities()[i].equals(activity)) {
+							stats.incrementActivity(i);
+							break;
+						}
 					}
 				}
 
 				if (Parameter.MODE == TrainingMode.Default) {
 					if (trainingIndex.contains(iteratorCounter))
-						trainingMainArray.add(unitObj);
+						trainingArray.add(unitObj);
 					else
-						testingMainArray.add(unitObj);
+						testingArray.add(unitObj);
 				} else if (Parameter.MODE == TrainingMode.CrossValidation) {
 					if (trainingIndex.contains(iteratorCounter))
-						testingMainArray.add(unitObj);
+						testingArray.add(unitObj);
 					else
-						trainingMainArray.add(unitObj);
+						trainingArray.add(unitObj);
 				}
 
 				iteratorCounter++;
 			} // End of iterator
+
+			if (type == Init_Type.Hardware) {
+				HardwareStats hard = (HardwareStats) stats;
 				// Add statistics (precise)
-			stats.addNumData(accel_csv_list.size());
-			stats.addNumGps(gps_csv_list.size());
+				stats.addNumData(accelCsvList.size());
+				hard.addNumGps(gpsCsvList.size());
+			}
+			else if(type == Init_Type.Software)
+			{
+				stats.addNumData(arr.size());
+			}
 			// Write to file
 			Writer writer = null;
+
 			if (Parameter.IS_GENERATING_TRAINING_FILES) {
-				writer = new FileWriter(Parameter.HARDWARE_TRAINING_PATH + fileName);
-				writer.write(trainingMainArray.toString());
+				if (type == Init_Type.Hardware)
+					writer = new FileWriter(Parameter.HARDWARE_TRAINING_PATH + fileName);
+				else if (type == Init_Type.Software)
+					writer = new FileWriter(Parameter.SOFTWARE_TRAINING_PATH + fileName);
+				writer.write(trainingArray.toString());
 				writer.close();
 			}
 			if (Parameter.IS_GENERATING_TESTING_FILES) {
-				writer = new FileWriter(Parameter.HARDWARE_TESTING_PATH + fileName);
-				writer.write(testingMainArray.toString());
+				if (type == Init_Type.Hardware)
+					writer = new FileWriter(Parameter.HARDWARE_TESTING_PATH + fileName);
+				else if(type == Init_Type.Software)
+					writer = new FileWriter(Parameter.SOFTWARE_TESTING_PATH + fileName);
+				writer.write(testingArray.toString());
 				writer.close();
 			}
+
 		} catch (Exception e) {
-			System.err.println("[ERR-Parser.InitHardware]: " + e.getMessage());
+			System.err.println("[ERR-Parser.InitData]: " + e.getMessage());
 		}
 	}
 
@@ -222,17 +291,17 @@ public class Parser {
 		Collections.sort(trainingIndex);
 	}
 
-	private String buildCSVHeader(String userId, String activity) {
+	private String buildCSVFront(String userId, String activity) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(userId).append(',');
 		sb.append(activity).append(',');
 		return sb.toString();
 	}
 
-	private String buildCSV(String userId, String activity, JSONObject parse, CSV_Type type) {
+	private String buildCSV(String userId, String activity, JSONObject parse, CSV_Type type, String... others) {
 		// Normalize time
 		// Build the string
-		String header = buildCSVHeader(userId, activity);
+		String header = buildCSVFront(userId, activity);
 		StringBuilder sb = new StringBuilder();
 		sb.append(header);
 		if (type == CSV_Type.Accel) {
@@ -242,9 +311,19 @@ public class Parser {
 			sb.append(parse.get("Z"));
 		} else if (type == CSV_Type.GPS) {
 			sb.append(parse.get("time")).append(',');
-			sb.append(parse.get("X")).append(',');
-			sb.append(parse.get("Y")).append(',');
+			sb.append(parse.get("Y")).append(',');	// latitude
+			sb.append(parse.get("X")).append(',');	// longitude
 			sb.append(parse.get("Speed"));
+		} else if(type == CSV_Type.App)
+		{
+			sb.append(parse.get("name"));
+		}
+		if(others.length >0)
+		{
+			for(String s: others)
+			{
+				sb.append(',').append(s);
+			}
 		}
 		sb.append('\n');
 		if (Parameter.IS_GENERATING_CSV_FILES) {
@@ -256,10 +335,12 @@ public class Parser {
 	private void writeCSVtoFile(String userId, CSV_Type type, StringBuilder sb) {
 		Writer writer = null;
 		try {
-			if (type == CSV_Type.Accel) {
+			if (type == CSV_Type.Accel)
 				writer = new FileWriter(Parameter.CSV_OUTPUT + userId + "_accel.csv", true);
-			} else if (type == CSV_Type.GPS)
+			else if (type == CSV_Type.GPS)
 				writer = new FileWriter(Parameter.CSV_OUTPUT + userId + "_gps.csv", true);
+			else if(type == CSV_Type.App)
+				writer = new FileWriter(Parameter.CSV_OUTPUT + userId + "_soft.csv", true);
 			writer.append(sb.toString());
 			writer.close();
 		} catch (IOException e) {

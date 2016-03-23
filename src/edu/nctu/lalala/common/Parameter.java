@@ -9,7 +9,7 @@ public class Parameter {
 	public static boolean IS_DEBUG = true;
 	public static boolean IS_GENERATING_TRAINING_FILES = false;
 	public static boolean IS_GENERATING_TESTING_FILES = false;
-	public static boolean IS_GENERATING_CSV_FILES = false;
+	public static boolean IS_GENERATING_CSV_FILES = true;
 	// Training mode
 	public static TrainingMode MODE = TrainingMode.Default;
 	// Dataset base directory
@@ -18,14 +18,29 @@ public class Parameter {
 	// Active users in this experiments
 	static String[] USERS = {
 			// Top 10 users
-//			"353567051351832", "353567051352475", "353567051353648", "353567051354810", "353567051354901",
-//			"353567051355254", "355027051966921", "355027054515550", "355387051404228", "864690022758703",
+			 "353567051351832", 	// Hardware + Software
+			 "353567051352475", 	// Hardware + Software
+			 "353567051353648", 	// Hardware + Software
+			 "353567051354810", 	// Hardware + Software
+			 "353567051354901", 	// Hardware + Software
+			 "353567051355254", 	// Hardware + Software
+			 "355027051966921", 	// Hardware + Software
+			 "355027054515550", 	// Hardware + Software
+			 "355387051404228", 	// Hardware + Software
+			 "864690022758703", 	// Hardware + Software
 			// Other
-//			"353567051351956", "355859056961972", "356440047806292", "863360029004219", "352241062477314",
-//			"354855061711965", "356063057559765", "865312025215222",
+			 "353567051351956", 	// Hardware + Software
+			 "355859056961972", 	// Hardware + Software
+			 "356440047806292", 	// Hardware + Software
+			 "863360029004219", 	// Hardware + Software
+			 "352241062477314", 	// Hardware + Software
+			 "354855061711965", 	// Hardware + Software
+			 "356063057559765", 	// Hardware + Software
+			 "865312025215222", 	// Hardware + Software
 			// Only 1 activity
-//			"353567051354828", "353567051354935", "354435052172343", "354833059525127", "863985028111613"
-			};
+//			 "353567051354828", "353567051354935", "354435052172343",
+//			 "354833059525127", "863985028111613"
+	};
 
 	// Paths
 	public static String SOFTWARE_PATH = WORKING_FOLDER + "Software_Original\\";
