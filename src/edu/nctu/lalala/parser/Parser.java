@@ -35,6 +35,7 @@ public class Parser {
 	 */
 	public static boolean IS_GENERATING_SAMPLE_FILES = false;
 	public static int SAMPLE_NUMBER = 300;
+	public static int OVERSAMPLE_NUMBER = SAMPLE_NUMBER * 5;
 	public static String SAMPLE_PREFIX = "sample_" + SAMPLE_NUMBER + "_";
 	static List<List<String>> ACC_SAMPLE_CSV = new ArrayList<>();
 	static List<List<String>> GPS_SAMPLE_CSV = new ArrayList<>();
@@ -73,7 +74,7 @@ public class Parser {
 			System.out.println(userId);
 			FileStats hardwareStats = initializeData(userId, Init_Type.Hardware);
 			// System.out.println(hardwareStats.generateColumnReport(false));
-			FileStats softwareStats = initializeData(userId, Init_Type.Software);
+//			FileStats softwareStats = initializeData(userId, Init_Type.Software);
 			// System.out.println(softwareStats.generateColumnReport(false));
 		}
 	}
@@ -127,9 +128,17 @@ public class Parser {
 			generateDirectories(userId, type);
 			// Initialize hardware
 			initializeData(targetFileName, filename, userId, stats, type);
+			// Reduce the number of sampe in the list (memory management)
+			reduceOversamplingCSV(ACC_SAMPLE_CSV);
+			reduceOversamplingCSV(GPS_SAMPLE_CSV);
+			reduceOversamplingCSV(APP_SAMPLE_CSV);
 		}
+		samplingCSV(userId, type);
 
-		// Sampling
+		return stats;
+	}
+
+	private void samplingCSV(String userId, Init_Type type) {
 		if (IS_GENERATING_SAMPLE_FILES) {
 			if (type == Init_Type.Hardware) {
 				// Accel
@@ -162,7 +171,6 @@ public class Parser {
 					list.clear();
 			}
 		}
-		return stats;
 	}
 
 	private void generateDirectories(String userId, Init_Type type) {
@@ -234,6 +242,7 @@ public class Parser {
 		// TODO add Cross Validation
 		// else if (Parameter.MODE == TrainingMode.CrossValidation)
 		// crossValidation(arr.size());
+
 		JSONArray trainingArray = new JSONArray();
 		JSONArray testingArray = new JSONArray();
 
@@ -319,7 +328,11 @@ public class Parser {
 				}
 
 				iteratorCounter++;
-//				System.gc();
+				if (iteratorCounter % 1000 == 0) {
+					if (Parameter.IS_DEBUG)
+						System.out.println("Processing " + iteratorCounter + " data");
+					System.gc();
+				}
 			} // End of iterator
 
 			if (type == Init_Type.Software) {
@@ -362,11 +375,34 @@ public class Parser {
 			List<String> list = sample.get(i);
 			List<String> newList = new ArrayList<>();
 			if (list.size() > 0) {
-				while (newList.size() < min) {
+//				if (Parameter.IS_DEBUG)
+//					System.out.println("reduceSampleCSV: " + list.size());
+				while (newList.size() < min && list.size() > 0) {
 					newList.add((String) list.remove(r.nextInt(list.size())));
 				}
 				list.clear();
 				list.addAll(newList);
+//				if (Parameter.IS_DEBUG)
+//					System.out.println("reduceSampleCSV: " + list.size());
+			}
+		}
+	}
+
+	private void reduceOversamplingCSV(List<List<String>> sample) {
+		Random r = new Random();
+		for (int i = 0; i < sample.size(); i++) {
+			List<String> list = sample.get(i);
+			if (list.size() > OVERSAMPLE_NUMBER) {
+//				if (Parameter.IS_DEBUG)
+//					System.out.println("reduceOversamplingCSV: " + list.size());
+				List<String> newList = new ArrayList<>();
+				while (newList.size() < OVERSAMPLE_NUMBER && list.size() > 0) {
+					newList.add((String) list.remove(r.nextInt(list.size())));
+				}
+				list.clear();
+				list.addAll(newList);
+//				if (Parameter.IS_DEBUG)
+//					System.out.println("reduceOversamplingCSV: " + list.size());
 			}
 		}
 	}
@@ -393,7 +429,6 @@ public class Parser {
 	}
 
 	private String buildCSV(String userId, String activity, JSONObject parse, CSV_Type type, String... others) {
-		// Normalize time
 		// Build the string
 		String header = buildCSVFront(userId, activity);
 		StringBuilder sb = new StringBuilder();
